@@ -1,5 +1,141 @@
-/* First, let's manage our sidebar layout. The sidebar acts as a primary navigation 
-   structure while maintaining visual harmony with the content sections */
+/* Base Setup
+   We start with a clean slate and establish our core variables.
+   These variables control the entire theme and scaling system. */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --theme-color: #000;
+    --theme-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --content-scale: 1rem;
+    --content-height: 60vh;
+    --text-color: white;
+    --header-height: 60px;
+    --sidebar-width: 250px;
+}
+
+/* Core Layout
+   Our body acts as a canvas for the interactive elements.
+   The mix-blend-mode property creates our content inversion effect. */
+body {
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--theme-color);
+    color: var(--text-color);
+    transition: background-color var(--theme-transition);
+}
+
+/* Header Design
+   The header maintains presence while allowing content to shine through.
+   We use mix-blend-mode to ensure text remains readable on any background. */
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    z-index: 100;
+    transition: all var(--theme-transition);
+    mix-blend-mode: difference;
+}
+
+/* Logo Styling
+   The UNIT3 logo uses Orbitron font for a modern, architectural feel.
+   Its large presence anchors the interface while remaining dynamic. */
+.logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: calc(var(--content-scale) * 1.5);
+    font-weight: 900;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+    color: #007bff;
+    mix-blend-mode: difference;
+}
+
+/* Navigation Layout
+   The nav element organizes our sections while maintaining fluidity.
+   Each section can be accessed through multiple interaction points. */
+nav {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 40px;
+    padding: 0 40px;
+}
+
+/* Section Styling
+   Sections use subtle hover effects and transitions to indicate interactivity.
+   The hierarchy is clear but not rigid. */
+.section {
+    position: relative;
+}
+
+.section h2 {
+    font-size: var(--content-scale);
+    margin-bottom: 8px;
+    color: inherit;
+}
+
+.section button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    font-size: calc(var(--content-scale) * 0.9);
+}
+
+.section button:hover {
+    transform: translateX(4px);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+/* Interactive Icons
+   The header icons use circular designs that reference UNIT3's visual language.
+   Their interaction states are both functional and playful. */
+.header-icons {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.icon-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    mix-blend-mode: difference;
+}
+
+.icon-button:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Sidebar Design
+   The sidebar provides structured navigation while remaining part of the fluid interface.
+   Its content scales with the corner resize system. */
 .sidebar {
     position: fixed;
     top: var(--header-height);
@@ -13,115 +149,9 @@
     mix-blend-mode: difference;
 }
 
-/* Each sidebar section represents a major category of content.
-   We use subtle hover effects to indicate interactivity while
-   maintaining visual clarity */
-.sidebar-section {
-    margin-bottom: 30px;
-}
-
-.sidebar-section h2 {
-    margin-bottom: 15px;
-    font-size: 18px;
-    transition: color var(--theme-transition);
-    color: #007bff;
-    opacity: 0.9;
-}
-
-/* Button styling creates a clean, minimal interface that
-   emphasizes content over decoration */
-.sidebar-section button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 8px;
-    margin: 4px 0;
-    background: none;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: inherit;
-    font-size: var(--content-scale);
-}
-
-/* Hover effects provide clear feedback while maintaining
-   the overall aesthetic */
-.sidebar-section button:hover {
-    transform: translateX(4px);
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-}
-
-/* Main content area needs to be flexible to accommodate
-   both the sidebar and the dynamic sections */
-main {
-    position: fixed;
-    top: var(--header-height);
-    left: var(--sidebar-width);
-    right: 0;
-    bottom: 0;
-    padding: 20px;
-    overflow-y: auto;
-    z-index: 1;
-    transition: all 0.3s ease;
-    pointer-events: auto;
-}
-
-/* Sections are the core interactive elements of our interface.
-   They need to be draggable, scalable, and maintain visual
-   hierarchy */
-.section {
-    background: var(--theme-color);
-    border-radius: 12px;
-    margin-bottom: 20px;
-    position: relative;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    cursor: grab;
-    width: calc(100% - var(--nav-padding, 0px));
-    margin-right: var(--nav-margin, 0px);
-    transform: translateX(calc(-1 * var(--nav-shift, 0px)));
-    z-index: 1;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    mix-blend-mode: difference;
-}
-
-/* When a section is being dragged, we modify its appearance
-   to provide clear visual feedback */
-.section.is-dragging {
-    transform: scale(0.95);
-    opacity: 0.9;
-    cursor: grabbing;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-}
-
-/* Fullscreen mode requires special handling to ensure
-   content remains accessible and visually coherent */
-.section.is-fullscreen {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    margin: 0 !important;
-    border-radius: 0;
-    z-index: 1000;
-    transform: none !important;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Section headers contain the controls and drag handle */
-.section-header {
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    background: inherit;
-    border-radius: 12px 12px 0 0;
-}
-
-/* The corner resize element is crucial for our content
-   scaling system */
+/* Corner Resize System
+   This unique interface element allows intuitive content scaling.
+   Its presence is subtle but its impact is significant. */
 .corner-resize {
     position: fixed;
     left: var(--sidebar-width);
@@ -133,8 +163,8 @@ main {
     cursor: move;
     z-index: 9999;
     mix-blend-mode: difference;
-    pointer-events: auto;
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .corner-resize:hover {
@@ -142,8 +172,9 @@ main {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
-/* Navigation dot system provides a unique way to manage
-   sections while maintaining spatial awareness */
+/* Section Slider (Navigation Dot)
+   Our innovative navigation system that makes content management physical and intuitive.
+   It maintains awareness of spatial relationships with content. */
 .section-slider {
     position: fixed;
     bottom: 20px;
@@ -154,99 +185,40 @@ main {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     z-index: 1001;
-    min-width: 40px;
     cursor: grab;
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     mix-blend-mode: difference;
 }
 
-/* Each dot represents a section, with hover states and
-   labels for clear identification */
+/* Navigation Dot States
+   Each dot represents a section and provides clear feedback about content state.
+   The interaction design encourages exploration. */
 .slider-dot {
-    position: relative;
-    cursor: pointer;
-    padding: 5px;
-    transition: transform 0.2s ease;
-    user-select: none;
-}
-
-.slider-dot:hover {
-    transform: translateX(-2px);
-}
-
-.dot-circle {
     width: 12px;
     height: 12px;
     background: white;
     border-radius: 50%;
-    display: block;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    mix-blend-mode: difference;
 }
 
-.dot-label {
-    position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%) translateX(-10px);
-    background: var(--theme-color);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.3s;
+.slider-dot:hover {
+    transform: scale(1.2);
 }
 
-.slider-dot:hover .dot-label {
-    opacity: 1;
-    transform: translateY(-50%) translateX(-5px);
-}
-
-/* Animation keyframes define our smooth transitions */
-@keyframes fadeToFullscreen {
-    from { transform: scale(0.98); opacity: 0.8; }
-    to { transform: scale(1); opacity: 1; }
-}
-
-@keyframes fadeFromFullscreen {
-    from { transform: scale(1); opacity: 1; }
-    to { transform: scale(0.98); opacity: 0.8; }
-}
-
-@keyframes slideUp {
-    from { transform: translateY(0); opacity: 1; }
-    to { transform: translateY(-10px); opacity: 0; }
-}
-
-@keyframes slideDown {
-    from { transform: translateY(-10px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-/* Mobile and tablet responsiveness */
-@media (max-width: 768px) {
-    :root {
-        --header-height: 50px;
-        --sidebar-width: 0;
-    }
-
-    .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-    }
-
-    .sidebar.active {
-        transform: translateX(0);
-    }
-
-    .section-slider {
-        bottom: 20px;
-        right: 50%;
-        transform: translateX(50%);
-        flex-direction: row;
-        gap: 8px;
-    }
+/* Content Area
+   The main content area responds to both direct manipulation and nav dot interaction.
+   It maintains visual hierarchy while allowing freedom of arrangement. */
+#mainContent {
+    position: fixed;
+    top: var(--header-height);
+    left: var(--sidebar-width);
+    right: 0;
+    bottom: 0;
+    padding: 20px;
+    overflow-y: auto;
+    transition: all var(--theme-transition);
 }
