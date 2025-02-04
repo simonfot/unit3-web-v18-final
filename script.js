@@ -1,231 +1,246 @@
-// First, we establish our core state management system. Think of this as the 
-// brain of our interface, keeping track of what's happening across all interactions.
-let activeSections = [];
-let draggedSection = null;
-let isDragging = false;
+// Continuing our JavaScript implementation with section management
+// Think of sections like physical cards that can be moved, scaled, and arranged
+// in space. Each section maintains awareness of its surroundings and responds
+// to both direct manipulation and proximity effects.
 
-// Each section has its own character, expressed through color. These colors create
-// a visual language that helps users understand the purpose of each area.
-const sectionColors = {
-    'Creates': '#ff6b6b',    // Warm, energetic red for creative activities
-    'Curates': '#4ecdc4',    // Cool, calming teal for curated content
-    'Connects': '#95a5a6',   // Neutral, connecting gray for community features
-    'Latest': '#ffd93d',     // Bright, attention-grabbing yellow for new content
-    'Menu': '#ff8b94',       // Soft pink for food and drink
-    'By Day': '#6c5ce7',     // Deep purple for daytime activities
-    'By Night': '#fdcb6e',   // Warm orange for evening events
-    'Events': '#ff7675'      // Vibrant coral for special occasions
-};
+// Section Management System
+function addSection(name) {
+    // First, check if section already exists - if so, we'll focus on it
+    if (activeSections.includes(name)) {
+        const section = document.getElementById(`section-${name}`);
+        section.scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
 
-// When the page loads, we initialize all our interactive systems. Each system 
-// works together to create a cohesive experience.
-document.addEventListener('DOMContentLoaded', () => {
-    setupCornerResize();     // Our unique scaling mechanism
-    setupNavBox();           // The floating navigation system
-    setupHeaderIcons();      // Interactive circular icons
-    setupSectionSystem();    // Content management
+    // Add to our active sections array
+    activeSections.push(name);
     
-    // Restore any previous state the user might have created
-    restoreState();
-});
+    // Create the section container - like laying down a new card
+    const section = document.createElement('div');
+    section.className = 'section';
+    section.id = `section-${name}`;
+    section.draggable = true;
+    
+    // Add the section's content
+    section.innerHTML = `
+        <div class="section-header" style="color: ${sectionColors[name] || '#fff'}">
+            <div class="drag-handle">⋮⋮</div>
+            <h2>${name}</h2>
+            <div class="section-controls">
+                <button onclick="toggleFullscreen('${name}')" class="fullscreen-btn">⛶</button>
+                <button onclick="minimizeSection('${name}')" class="minimize-btn">−</button>
+                <button onclick="closeSection('${name}')" class="close-btn">×</button>
+            </div>
+        </div>
+        <div class="section-content">
+            ${generateContent(name)}
+        </div>
+    `;
 
-// The corner resize system lets users scale content naturally, as if they were
-// pulling on the corner of a sheet of paper.
-function setupCornerResize() {
-    const corner = document.getElementById('cornerResize');
-    const header = document.querySelector('header');
-    const sidebar = document.querySelector('.sidebar');
+    // Set up the section's interactive behaviors
+    setupSectionInteractions(section);
+    
+    // Add to main content area with a smooth entrance
     const main = document.getElementById('mainContent');
-    let isResizing = false;
-    let startX, startY, startScale;
+    main.appendChild(section);
+    
+    // Create navigation dot for this section
+    addNavigationDot(name);
+    
+    // Ensure the new section is visible
+    section.scrollIntoView({ behavior: 'smooth' });
+    
+    // Update our spatial system
+    updateSpatialRelationships();
+    saveState();
+}
 
-    // We handle both mouse and touch interactions for broad device support
-    corner.addEventListener('mousedown', startResize);
-    document.addEventListener('mousemove', handleResize);
-    document.addEventListener('mouseup', stopResize);
-    corner.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startResize(e.touches[0]);
+// Navigation Dot System
+// This is our innovative way to manage sections - think of it like a physical
+// control panel that can be moved around the interface
+function addNavigationDot(name) {
+    const slider = document.getElementById('sectionSlider');
+    const dot = document.createElement('div');
+    dot.className = 'slider-dot';
+    dot.setAttribute('data-section', name);
+    
+    // Create the dot's visual structure
+    dot.innerHTML = `
+        <div class="dot-content">
+            <span class="dot-label">${name}</span>
+            <span class="dot-circle"></span>
+        </div>
+    `;
+
+    // Set up dot interactions
+    setupDotInteractions(dot, name);
+    
+    // Add to slider with smooth animation
+    dot.style.opacity = '0';
+    slider.appendChild(dot);
+    requestAnimationFrame(() => {
+        dot.style.transition = 'opacity 0.3s ease';
+        dot.style.opacity = '1';
     });
-
-    function startResize(e) {
-        isResizing = true;
-        corner.classList.add('active');
-        document.body.classList.add('resizing');
-
-        // Store initial positions for smooth scaling
-        startX = e.clientX;
-        startY = e.clientY;
-        startScale = getCurrentScale();
-    }
-
-    function handleResize(e) {
-        if (!isResizing) return;
-        
-        // Use requestAnimationFrame for smooth performance
-        requestAnimationFrame(() => {
-            // Calculate new dimensions based on cursor position
-            const sidebarWidth = Math.max(200, Math.min(500, e.clientX));
-            const headerHeight = Math.max(50, Math.min(200, e.clientY));
-            
-            // Calculate scale based on cursor position relative to window size
-            const scaleX = e.clientX / window.innerWidth;
-            const scaleY = e.clientY / window.innerHeight;
-            const scale = Math.max(0.8, Math.min(2.0, (scaleX + scaleY) / 1.5));
-            
-            // Update our CSS variables that control the layout
-            document.documentElement.style.setProperty('--content-scale', `${scale}rem`);
-            document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
-            document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
-
-            // Apply transforms for better performance
-            updateLayout(sidebarWidth, headerHeight, scale);
-        });
-    }
-
-    function stopResize() {
-        if (!isResizing) return;
-        isResizing = false;
-        corner.classList.remove('active');
-        document.body.classList.remove('resizing');
-        saveState();
-    }
 }
 
-// The navigation box is our innovative way to manage sections. It's like a physical
-// control panel that can be moved around the interface.
-function setupNavBox() {
+// Spatial Awareness System
+// This creates the feeling that elements are aware of each other in space
+function updateSpatialRelationships() {
     const nav = document.getElementById('sectionSlider');
-    let isDragging = false;
-    let currentX, currentY, initialX, initialY;
-    let xOffset = 0, yOffset = 0;
-
-    nav.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', stopDrag);
-
-    function startDrag(e) {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
-        
-        if (e.target === nav) {
-            isDragging = true;
-            nav.classList.add('dragging');
-        }
-    }
-
-    function drag(e) {
-        if (!isDragging) return;
-        e.preventDefault();
-
-        currentX = e.clientX - initialX;
-        currentY = e.clientY - initialY;
-        xOffset = currentX;
-        yOffset = currentY;
-
-        // Keep nav box within viewport bounds
-        const maxX = window.innerWidth - nav.offsetWidth;
-        const maxY = window.innerHeight - nav.offsetHeight;
-        
-        xOffset = Math.min(Math.max(0, xOffset), maxX);
-        yOffset = Math.min(Math.max(0, yOffset), maxY);
-
-        nav.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
-        updateProximityEffects();
-    }
-
-    function stopDrag() {
-        isDragging = false;
-        nav.classList.remove('dragging');
-        saveNavPosition();
-    }
-}
-
-// The proximity system creates a spatial relationship between the nav box and content.
-// It's like creating gravity wells that affect nearby content.
-function updateProximityEffects() {
-    const nav = document.getElementById('sectionSlider');
-    const sections = document.querySelectorAll('.section');
     const navRect = nav.getBoundingClientRect();
+    const sections = document.querySelectorAll('.section');
 
     sections.forEach(section => {
         const rect = section.getBoundingClientRect();
-        const distance = getDistance(navRect, rect);
+        const distance = calculateDistance(navRect, rect);
+
+        // Apply proximity effects with smooth transitions
+        const proximityEffect = Math.max(0, 1 - (distance / 300));
         
-        if (distance < 300) {
-            const effect = 1 - (distance / 300);
-            section.style.transform = `scale(${1 + effect * 0.05})`;
-            section.style.zIndex = Math.floor(1000 * effect);
-        } else {
-            section.style.transform = '';
-            section.style.zIndex = '';
+        // Use transform for better performance
+        section.style.transform = proximityEffect > 0 
+            ? `scale(${1 + proximityEffect * 0.05})`
+            : '';
+            
+        // Update visual feedback
+        section.style.setProperty('--proximity', proximityEffect);
+    });
+}
+
+// Drag and Drop System
+// This makes sections feel like physical objects that can be picked up and moved
+function setupSectionInteractions(section) {
+    let initialX, initialY, currentX, currentY;
+    let dragStarted = false;
+
+    section.addEventListener('mousedown', startDrag);
+    section.addEventListener('mousemove', drag);
+    section.addEventListener('mouseup', stopDrag);
+    section.addEventListener('mouseleave', stopDrag);
+
+    // Touch support for mobile devices
+    section.addEventListener('touchstart', e => {
+        const touch = e.touches[0];
+        startDrag({ clientX: touch.clientX, clientY: touch.clientY });
+    });
+
+    function startDrag(e) {
+        if (e.target.closest('.section-controls')) return;
+        
+        initialX = e.clientX - section.offsetLeft;
+        initialY = e.clientY - section.offsetTop;
+        dragStarted = true;
+        
+        section.classList.add('dragging');
+        updateZIndex();
+    }
+
+    function drag(e) {
+        if (!dragStarted) return;
+
+        e.preventDefault();
+        currentX = e.clientX - initialX;
+        currentY = e.clientY - initialY;
+
+        // Use transform for smooth movement
+        section.style.transform = `translate(${currentX}px, ${currentY}px)`;
+        
+        // Check for edge snapping
+        checkEdgeSnapping(section, currentX, currentY);
+        
+        // Update spatial relationships
+        updateSpatialRelationships();
+    }
+
+    function stopDrag() {
+        if (!dragStarted) return;
+        
+        dragStarted = false;
+        section.classList.remove('dragging');
+        
+        // Save the final position
+        saveSectionPosition(section);
+    }
+}
+
+// Edge Snapping System
+// This helps sections align with screen edges and each other
+function checkEdgeSnapping(section, x, y) {
+    const rect = section.getBoundingClientRect();
+    const snapDistance = 20;
+    
+    // Check screen edges
+    if (rect.left < snapDistance) {
+        section.style.transform = `translate(0px, ${y}px)`;
+    }
+    if (rect.right > window.innerWidth - snapDistance) {
+        section.style.transform = `translate(${window.innerWidth - rect.width}px, ${y}px)`;
+    }
+    
+    // Check other sections for alignment
+    document.querySelectorAll('.section').forEach(other => {
+        if (other === section) return;
+        
+        const otherRect = other.getBoundingClientRect();
+        
+        // Vertical alignment
+        if (Math.abs(rect.left - otherRect.left) < snapDistance) {
+            section.style.transform = `translate(${otherRect.left}px, ${y}px)`;
         }
     });
 }
 
-// Our header icons system provides quick access to key functions while maintaining
-// visual harmony with the rest of the interface.
-function setupHeaderIcons() {
-    const icons = document.querySelectorAll('.icon-button');
+// Animation Management
+// This ensures all movement in the interface feels smooth and natural
+function setupAnimationSystem() {
+    // Use requestAnimationFrame for smooth performance
+    let ticking = false;
     
-    icons.forEach(icon => {
-        icon.addEventListener('mouseenter', () => {
-            icon.style.transform = 'scale(1.1)';
-        });
-        
-        icon.addEventListener('mouseleave', () => {
-            icon.style.transform = 'scale(1)';
-        });
-        
-        icon.addEventListener('click', () => {
-            handleIconClick(icon.getAttribute('title'));
-        });
+    document.addEventListener('scroll', () => {
+        if (!ticking) {
+            requestAnimationFrame(() => {
+                updateSpatialRelationships();
+                ticking = false;
+            });
+            ticking = true;
+        }
     });
+
+    // Smooth transitions for section changes
+    const transitionSection = (section, entering) => {
+        section.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        section.style.opacity = entering ? '1' : '0';
+        section.style.transform = entering 
+            ? 'scale(1) translate(0, 0)'
+            : 'scale(0.95) translate(0, 10px)';
+            
+        setTimeout(() => {
+            section.style.transition = '';
+        }, 300);
+    };
+
+    return { transitionSection };
 }
 
-// State management ensures user preferences and layouts persist between visits
-function saveState() {
-    const state = {
-        scale: getComputedStyle(document.documentElement).getPropertyValue('--content-scale'),
-        headerHeight: getComputedStyle(document.documentElement).getPropertyValue('--header-height'),
-        sidebarWidth: getComputedStyle(document.documentElement).getPropertyValue('--sidebar-width'),
-        sections: activeSections,
-        navPosition: {
-            x: xOffset,
-            y: yOffset
-        },
+// State Persistence System
+// This remembers how the user has arranged their space
+function saveSectionPosition(section) {
+    const positions = JSON.parse(localStorage.getItem('sectionPositions') || '{}');
+    
+    positions[section.id] = {
+        transform: section.style.transform,
         timestamp: Date.now()
     };
     
-    localStorage.setItem('interfaceState', JSON.stringify(state));
+    localStorage.setItem('sectionPositions', JSON.stringify(positions));
 }
 
-function restoreState() {
-    try {
-        const saved = localStorage.getItem('interfaceState');
-        if (!saved) return;
-        
-        const state = JSON.parse(saved);
-        
-        // Only restore if saved within last 24 hours
-        if (Date.now() - state.timestamp > 24 * 60 * 60 * 1000) {
-            localStorage.removeItem('interfaceState');
-            return;
-        }
-        
-        // Apply saved state
-        document.documentElement.style.setProperty('--content-scale', state.scale);
-        document.documentElement.style.setProperty('--header-height', state.headerHeight);
-        document.documentElement.style.setProperty('--sidebar-width', state.sidebarWidth);
-        
-        // Restore sections
-        state.sections.forEach(section => addSection(section));
-        
-        // Restore nav position
-        const nav = document.getElementById('sectionSlider');
-        nav.style.transform = `translate(${state.navPosition.x}px, ${state.navPosition.y}px)`;
-        
-    } catch (error) {
-        console.warn('Error restoring state:', error);
-    }
-}
+// Initialize all our systems when the page loads
+const { transitionSection } = setupAnimationSystem();
+
+// Export key functions for use in HTML event handlers
+window.addSection = addSection;
+window.toggleFullscreen = toggleFullscreen;
+window.minimizeSection = minimizeSection;
+window.closeSection = closeSection;
