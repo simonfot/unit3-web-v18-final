@@ -1,146 +1,212 @@
-// First, we establish our core state management system. This handles the active sections
-// and their states throughout the application lifecycle.
-let activeSections = [];
-let draggedSection = null;
-let isDragging = false;
+// Section Management System
+// This system handles the creation, movement, and interactions of content sections.
+// Think of sections as living entities that can be manipulated in 3D space.
+function addSection(name) {
+    // First, check if the section already exists - if so, we'll focus on it instead
+    if (activeSections.includes(name)) {
+        const section = document.getElementById(`section-${name}`);
+        section.scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
 
-// Theme colors are defined for each section, creating a cohesive visual system that
-// reflects the nature of each content area
-const sectionColors = {
-    'Creates': '#ff6b6b',    // Warm, energetic red for creative activities
-    'Curates': '#4ecdc4',    // Cool, calming teal for curated content
-    'Connects': '#95a5a6',   // Neutral, connecting gray for community features
-    'Latest': '#ffd93d',     // Bright, attention-grabbing yellow for new content
-    'Calendar': '#a8e6cf',   // Soft, natural green for time-based content
-    'Menu': '#ff8b94',       // Soft pink for food and drink
-    'By Day': '#6c5ce7',     // Deep purple for daytime activities
-    'By Night': '#fdcb6e',   // Warm orange for evening events
-    'Events': '#ff7675',     // Vibrant coral for special occasions
-    'Exhibitions': '#74b9ff', // Sky blue for art and exhibitions
-    'The Fungi Room': '#55efc4', // Organic mint for natural elements
-    'Creative Climate Collab': '#81ecec', // Fresh aqua for collaborative projects
-    'Directory': '#fab1a0',   // Warm peach for community connections
-    'Zine': '#ffeaa7',       // Light yellow for publications
-    'Opportunities': '#dfe6e9' // Clean gray for opportunities
-};
-
-// When the DOM loads, we initialize all our core functionality
-document.addEventListener('DOMContentLoaded', () => {
-    // Initialize all major systems in a specific order to ensure proper setup
-    setupDropdowns();        // Setup menu system first
-    setupCornerResize();     // Initialize content scaling
-    setupNavCollisionDetection(); // Setup spatial awareness
-    setupScrollListener();   // Handle scroll-based updates
-    setupColorPicker();      // Initialize theme system
-    setupCalendar();         // Setup calendar functionality
-    setupNavBoxDrag();       // Initialize navigation dot system
-    setupHeaderIcons();      // Setup header icon interactions
+    // Add to our active sections array for state management
+    activeSections.push(name);
     
-    // Restore previous state if it exists
-    restorePreviousState();
+    // Create the section with a unique identifier
+    const section = document.createElement('div');
+    section.className = 'section hardware-accelerated';
+    section.id = `section-${name}`;
+    section.draggable = true;
     
-    // Open the Latest section by default to give users immediate content
-    setTimeout(() => addSection('Latest'), 100);
-});
+    // Generate the appropriate content for this section
+    const content = generateSectionContent(name);
+    
+    // Build the section's HTML structure
+    section.innerHTML = `
+        <div class="section-header">
+            <div class="drag-handle">⋮⋮</div>
+            <h2>${name}</h2>
+            <div class="section-controls">
+                <button onclick="toggleFullscreen('${name}')" title="Fullscreen" class="fullscreen-btn">⛶</button>
+                <button onclick="minimizeSection('${name}')" title="Minimize" class="minimize-btn">−</button>
+                <button onclick="closeSection('${name}')" title="Close" class="close-btn">×</button>
+            </div>
+        </div>
+        <div class="section-content">
+            ${content}
+        </div>
+    `;
 
-// State restoration system loads user preferences and section states
-function restorePreviousState() {
-    // Restore theme color if previously set
-    const savedColor = localStorage.getItem('lastThemeColor');
-    if (savedColor) {
-        document.documentElement.style.setProperty('--theme-color', savedColor);
-        updateHeaderIcons(savedColor);
+    // Set up all the interactive behaviors
+    setupSectionInteractions(section);
+    
+    // Add the section to our main content area
+    document.getElementById('mainContent').appendChild(section);
+    
+    // Apply any saved scale settings
+    const savedScale = localStorage.getItem('contentScale');
+    if (savedScale) {
+        section.querySelector('.section-content').style.fontSize = `${savedScale}rem`;
     }
     
-    // Restore section states including positions and scales
-    const savedSections = localStorage.getItem('sectionState');
-    if (savedSections) {
-        try {
-            const sections = JSON.parse(savedSections);
-            sections.forEach(section => {
-                if (section.active) {
-                    addSection(section.name, section.position);
-                }
-            });
-        } catch (error) {
-            console.warn('Error restoring section state:', error);
-        }
-    }
+    // Update our navigation and state
+    updateSectionOrder();
+    updateSlider();
+    
+    // Ensure the new section is visible
+    section.scrollIntoView({ behavior: 'smooth' });
+    
+    // Check for any spatial conflicts
+    checkCollision();
+    
+    // Update theme color based on the new section
+    updateThemeColor(name);
+
+    // Save our current state
+    saveSectionState();
 }
 
-// Header icon system provides visual feedback and interaction
-function setupHeaderIcons() {
-    const icons = {
-        account: document.querySelector('.icon-person'),
-        basket: document.querySelector('.icon-basket'),
-        menu: document.querySelector('.icon-triad')
-    };
+// Corner Resize System
+// This is our unique scaling mechanism that allows users to dynamically
+// adjust content size and layout using the corner dot
+function setupCornerResize() {
+    const corner = document.getElementById('cornerResize');
+    const header = document.querySelector('header');
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.getElementById('mainContent');
+    let isResizing = false;
+    let startX, startY, startScale;
 
-    // Add hover effects and click handlers for each icon
-    Object.entries(icons).forEach(([name, icon]) => {
-        if (icon) {
-            icon.parentElement.addEventListener('mouseenter', () => {
-                icon.style.transform = 'scale(1.1)';
-            });
-            
-            icon.parentElement.addEventListener('mouseleave', () => {
-                icon.style.transform = 'scale(1)';
-            });
-            
-            icon.parentElement.addEventListener('click', () => {
-                handleIconClick(name);
-            });
+    // Set up both mouse and touch interactions
+    corner.addEventListener('mousedown', startResize);
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+
+    corner.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startResize(e.touches[0]);
+    });
+
+    document.addEventListener('touchmove', (e) => {
+        if (isResizing) {
+            e.preventDefault();
+            handleResize(e.touches[0]);
         }
     });
-}
 
-// Icon click handler manages different icon functionalities
-function handleIconClick(iconName) {
-    switch(iconName) {
-        case 'account':
-            // Account management functionality
-            console.log('Account clicked');
-            break;
-        case 'basket':
-            // Shopping basket functionality
-            console.log('Basket clicked');
-            break;
-        case 'menu':
-            // Menu toggle functionality
-            console.log('Menu clicked');
-            break;
+    document.addEventListener('touchend', stopResize);
+
+    function startResize(e) {
+        isResizing = true;
+        corner.classList.add('active');
+        document.body.classList.add('resizing');
+
+        // Store initial positions for smooth transitions
+        startX = e.clientX;
+        startY = e.clientY;
+        startScale = getCurrentScale();
+
+        // Capture current dimensions for reference
+        captureInitialDimensions();
+    }
+
+    function handleResize(e) {
+        if (!isResizing) return;
+        
+        // Use requestAnimationFrame for smooth performance
+        requestAnimationFrame(() => {
+            // Calculate new dimensions based on cursor position
+            const sidebarWidth = Math.max(200, Math.min(500, e.clientX));
+            const headerHeight = Math.max(50, Math.min(200, e.clientY));
+            
+            // Calculate scale based on movement in both axes
+            const scaleX = e.clientX / window.innerWidth;
+            const scaleY = e.clientY / window.innerHeight;
+            const scale = Math.max(0.8, Math.min(2.0, (scaleX + scaleY) / 1.5));
+            
+            // Update our CSS variables for responsive scaling
+            document.documentElement.style.setProperty('--content-scale', `${scale}rem`);
+            document.documentElement.style.setProperty('--content-height', `${headerHeight * 2}px`);
+            document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+            document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
+
+            // Apply transforms for better performance
+            applyLayoutTransforms({
+                sidebar,
+                header,
+                main,
+                corner,
+                sidebarWidth,
+                headerHeight,
+                scale
+            });
+
+            // Update content sizes throughout the interface
+            updateContentSizes(scale);
+
+            // Save our layout settings
+            saveLayoutState({
+                scale,
+                headerHeight,
+                sidebarWidth
+            });
+
+            // Check for any spatial conflicts
+            checkCollision();
+        });
+    }
+
+    function stopResize() {
+        if (!isResizing) return;
+        
+        isResizing = false;
+        corner.classList.remove('active');
+        document.body.classList.remove('resizing');
+
+        // Apply a smooth transition after resize
+        smoothTransition();
     }
 }
 
-// Theme color management system
-function updateThemeColor(sectionName) {
-    const mainSection = sectionName.split(' ')[0];
-    const color = sectionColors[mainSection] || '#000';
+// Layout Transform System
+// This system handles the actual visual updates when resizing content
+function applyLayoutTransforms({ sidebar, header, main, corner, sidebarWidth, headerHeight, scale }) {
+    // Use hardware-accelerated transforms for smooth performance
+    sidebar.style.transform = `translate3d(0, ${headerHeight}px, 0)`;
+    sidebar.style.width = `${sidebarWidth}px`;
     
-    // Update theme color with transition
-    document.documentElement.style.setProperty('--theme-color', color);
-    localStorage.setItem('lastThemeColor', color);
+    header.style.height = `${headerHeight}px`;
     
-    // Update header icons to maintain visibility
-    updateHeaderIcons(color);
+    main.style.transform = `translate3d(${sidebarWidth}px, ${headerHeight}px, 0)`;
+    
+    corner.style.transform = `translate3d(${sidebarWidth}px, ${headerHeight}px, 0)`;
+
+    // Update font sizes with GPU acceleration
+    header.style.fontSize = `${scale}rem`;
+    document.querySelector('.logo-container').style.fontSize = `${scale * 1.5}rem`;
+    sidebar.style.fontSize = `${scale}rem`;
 }
 
-// Header icon color management ensures visibility against changing backgrounds
-function updateHeaderIcons(backgroundColor) {
-    const icons = document.querySelectorAll('.icon-button');
-    const isDark = isColorDark(backgroundColor);
-    
-    icons.forEach(icon => {
-        icon.style.color = isDark ? '#fff' : '#000';
+// Content Size Management
+// This ensures all content scales proportionally and smoothly
+function updateContentSizes(scale) {
+    // Update all scalable content elements
+    document.querySelectorAll('.section-content, .header-nav, .dropdown-content, .sidebar-section').forEach(el => {
+        el.style.fontSize = `${scale}rem`;
+        
+        // For section content, adjust padding proportionally
+        if (el.classList.contains('section-content')) {
+            const padding = Math.round(20 * scale);
+            el.style.padding = `${padding}px`;
+        }
     });
-}
 
-// Utility function to determine if a color is dark
-function isColorDark(color) {
-    const hex = color.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-    const brightness = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return brightness < 128;
+    // Update section dimensions while maintaining proportions
+    document.querySelectorAll('.section').forEach(section => {
+        if (section.dataset.initialRect) {
+            const initialRect = JSON.parse(section.dataset.initialRect);
+            section.style.width = `${initialRect.width * scale}px`;
+            section.style.minHeight = `${initialRect.height * scale}px`;
+        }
+    });
 }
