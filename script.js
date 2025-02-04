@@ -1,212 +1,201 @@
-// Section Management System
-// This system handles the creation, movement, and interactions of content sections.
-// Think of sections as living entities that can be manipulated in 3D space.
-function addSection(name) {
-    // First, check if the section already exists - if so, we'll focus on it instead
-    if (activeSections.includes(name)) {
-        const section = document.getElementById(`section-${name}`);
-        section.scrollIntoView({ behavior: 'smooth' });
-        return;
-    }
+// Navigation Dot System
+// Our navigation system reimagines how users interact with web content by creating
+// a physical metaphor for content management. Think of it as a control panel that
+// can float anywhere in the interface, maintaining a spatial relationship with content.
+function setupNavBoxDrag() {
+    const slider = document.getElementById('sectionSlider');
+    let isDragging = false;
+    let currentX, currentY, initialX, initialY;
+    let xOffset = 0;
+    let yOffset = 0;
+    let draggedDot = null;
 
-    // Add to our active sections array for state management
-    activeSections.push(name);
-    
-    // Create the section with a unique identifier
-    const section = document.createElement('div');
-    section.className = 'section hardware-accelerated';
-    section.id = `section-${name}`;
-    section.draggable = true;
-    
-    // Generate the appropriate content for this section
-    const content = generateSectionContent(name);
-    
-    // Build the section's HTML structure
-    section.innerHTML = `
-        <div class="section-header">
-            <div class="drag-handle">⋮⋮</div>
-            <h2>${name}</h2>
-            <div class="section-controls">
-                <button onclick="toggleFullscreen('${name}')" title="Fullscreen" class="fullscreen-btn">⛶</button>
-                <button onclick="minimizeSection('${name}')" title="Minimize" class="minimize-btn">−</button>
-                <button onclick="closeSection('${name}')" title="Close" class="close-btn">×</button>
-            </div>
-        </div>
-        <div class="section-content">
-            ${content}
-        </div>
-    `;
+    // We support both touch and mouse interactions to ensure a consistent
+    // experience across all devices
+    slider.addEventListener('touchstart', dragStart, { passive: true });
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('touchend', dragEnd);
+    slider.addEventListener('mousedown', dragStart);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
 
-    // Set up all the interactive behaviors
-    setupSectionInteractions(section);
-    
-    // Add the section to our main content area
-    document.getElementById('mainContent').appendChild(section);
-    
-    // Apply any saved scale settings
-    const savedScale = localStorage.getItem('contentScale');
-    if (savedScale) {
-        section.querySelector('.section-content').style.fontSize = `${savedScale}rem`;
-    }
-    
-    // Update our navigation and state
-    updateSectionOrder();
-    updateSlider();
-    
-    // Ensure the new section is visible
-    section.scrollIntoView({ behavior: 'smooth' });
-    
-    // Check for any spatial conflicts
-    checkCollision();
-    
-    // Update theme color based on the new section
-    updateThemeColor(name);
-
-    // Save our current state
-    saveSectionState();
-}
-
-// Corner Resize System
-// This is our unique scaling mechanism that allows users to dynamically
-// adjust content size and layout using the corner dot
-function setupCornerResize() {
-    const corner = document.getElementById('cornerResize');
-    const header = document.querySelector('header');
-    const sidebar = document.querySelector('.sidebar');
-    const main = document.getElementById('mainContent');
-    let isResizing = false;
-    let startX, startY, startScale;
-
-    // Set up both mouse and touch interactions
-    corner.addEventListener('mousedown', startResize);
-    document.addEventListener('mousemove', handleResize);
-    document.addEventListener('mouseup', stopResize);
-
-    corner.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        startResize(e.touches[0]);
-    });
-
-    document.addEventListener('touchmove', (e) => {
-        if (isResizing) {
-            e.preventDefault();
-            handleResize(e.touches[0]);
-        }
-    });
-
-    document.addEventListener('touchend', stopResize);
-
-    function startResize(e) {
-        isResizing = true;
-        corner.classList.add('active');
-        document.body.classList.add('resizing');
-
-        // Store initial positions for smooth transitions
-        startX = e.clientX;
-        startY = e.clientY;
-        startScale = getCurrentScale();
-
-        // Capture current dimensions for reference
-        captureInitialDimensions();
-    }
-
-    function handleResize(e) {
-        if (!isResizing) return;
-        
-        // Use requestAnimationFrame for smooth performance
-        requestAnimationFrame(() => {
-            // Calculate new dimensions based on cursor position
-            const sidebarWidth = Math.max(200, Math.min(500, e.clientX));
-            const headerHeight = Math.max(50, Math.min(200, e.clientY));
+    // Section dots can be reordered through drag and drop, creating an
+    // intuitive way to organize content
+    function setupDotDragging() {
+        document.querySelectorAll('.slider-dot').forEach(dot => {
+            dot.draggable = true;
             
-            // Calculate scale based on movement in both axes
-            const scaleX = e.clientX / window.innerWidth;
-            const scaleY = e.clientY / window.innerHeight;
-            const scale = Math.max(0.8, Math.min(2.0, (scaleX + scaleY) / 1.5));
-            
-            // Update our CSS variables for responsive scaling
-            document.documentElement.style.setProperty('--content-scale', `${scale}rem`);
-            document.documentElement.style.setProperty('--content-height', `${headerHeight * 2}px`);
-            document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
-            document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
-
-            // Apply transforms for better performance
-            applyLayoutTransforms({
-                sidebar,
-                header,
-                main,
-                corner,
-                sidebarWidth,
-                headerHeight,
-                scale
+            // When starting to drag a dot, we create a ghost image that follows
+            // the cursor, providing visual feedback
+            dot.addEventListener('dragstart', (e) => {
+                draggedDot = dot;
+                dot.classList.add('dragging');
+                e.stopPropagation();
+                
+                // Create a ghost image for drag feedback
+                const ghost = dot.cloneNode(true);
+                ghost.style.position = 'absolute';
+                ghost.style.opacity = '0';
+                document.body.appendChild(ghost);
+                e.dataTransfer.setDragImage(ghost, 0, 0);
+                setTimeout(() => ghost.remove(), 0);
             });
 
-            // Update content sizes throughout the interface
-            updateContentSizes(scale);
-
-            // Save our layout settings
-            saveLayoutState({
-                scale,
-                headerHeight,
-                sidebarWidth
+            dot.addEventListener('dragend', (e) => {
+                dot.classList.remove('dragging');
+                draggedDot = null;
+                e.stopPropagation();
+                saveNavOrder();
             });
 
-            // Check for any spatial conflicts
-            checkCollision();
+            // During drag, we calculate positions and update the visual order
+            dot.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (!draggedDot || draggedDot === dot) return;
+
+                const rect = dot.getBoundingClientRect();
+                const mouseY = e.clientY;
+                const midpoint = rect.top + rect.height / 2;
+
+                // Insert the dragged dot based on mouse position
+                if (mouseY < midpoint) {
+                    if (draggedDot.nextSibling !== dot) {
+                        slider.insertBefore(draggedDot, dot);
+                    }
+                } else {
+                    if (draggedDot.previousSibling !== dot) {
+                        slider.insertBefore(draggedDot, dot.nextSibling);
+                    }
+                }
+
+                // Synchronize the main content order with dot order
+                synchronizeSectionOrder();
+                updateProximityEffects();
+            });
         });
     }
 
-    function stopResize() {
-        if (!isResizing) return;
+    // When dragging begins, we store initial positions and update visual state
+    function dragStart(e) {
+        if (e.target.closest('.slider-dot')) return;
         
-        isResizing = false;
-        corner.classList.remove('active');
-        document.body.classList.remove('resizing');
+        const evt = e.type === 'touchstart' ? e.touches[0] : e;
+        initialX = evt.clientX - xOffset;
+        initialY = evt.clientY - yOffset;
 
-        // Apply a smooth transition after resize
-        smoothTransition();
+        if (e.target === slider) {
+            isDragging = true;
+            slider.classList.add('dragging');
+        }
     }
-}
 
-// Layout Transform System
-// This system handles the actual visual updates when resizing content
-function applyLayoutTransforms({ sidebar, header, main, corner, sidebarWidth, headerHeight, scale }) {
-    // Use hardware-accelerated transforms for smooth performance
-    sidebar.style.transform = `translate3d(0, ${headerHeight}px, 0)`;
-    sidebar.style.width = `${sidebarWidth}px`;
-    
-    header.style.height = `${headerHeight}px`;
-    
-    main.style.transform = `translate3d(${sidebarWidth}px, ${headerHeight}px, 0)`;
-    
-    corner.style.transform = `translate3d(${sidebarWidth}px, ${headerHeight}px, 0)`;
+    // During drag, we calculate new positions and apply transforms
+    function drag(e) {
+        if (!isDragging) return;
+        e.preventDefault();
 
-    // Update font sizes with GPU acceleration
-    header.style.fontSize = `${scale}rem`;
-    document.querySelector('.logo-container').style.fontSize = `${scale * 1.5}rem`;
-    sidebar.style.fontSize = `${scale}rem`;
-}
+        const evt = e.type === 'touchmove' ? e.touches[0] : e;
+        currentX = evt.clientX - initialX;
+        currentY = evt.clientY - initialY;
 
-// Content Size Management
-// This ensures all content scales proportionally and smoothly
-function updateContentSizes(scale) {
-    // Update all scalable content elements
-    document.querySelectorAll('.section-content, .header-nav, .dropdown-content, .sidebar-section').forEach(el => {
-        el.style.fontSize = `${scale}rem`;
+        xOffset = currentX;
+        yOffset = currentY;
+
+        // Apply the new position with boundary checking
+        updateNavBoxPosition(currentX, currentY);
         
-        // For section content, adjust padding proportionally
-        if (el.classList.contains('section-content')) {
-            const padding = Math.round(20 * scale);
-            el.style.padding = `${padding}px`;
-        }
-    });
+        // Update content based on nav box position
+        handleProximityEffects();
+    }
 
-    // Update section dimensions while maintaining proportions
-    document.querySelectorAll('.section').forEach(section => {
-        if (section.dataset.initialRect) {
-            const initialRect = JSON.parse(section.dataset.initialRect);
-            section.style.width = `${initialRect.width * scale}px`;
-            section.style.minHeight = `${initialRect.height * scale}px`;
-        }
-    });
+    function dragEnd() {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        slider.classList.remove('dragging');
+        
+        // Save the final position for persistence
+        saveNavPosition();
+        
+        // Trigger final layout updates
+        updateLayout();
+    }
+
+    // This function ensures the nav box stays within viewport bounds while
+    // maintaining smooth movement
+    function updateNavBoxPosition(x, y) {
+        const box = slider.getBoundingClientRect();
+        const maxX = window.innerWidth - box.width;
+        const maxY = window.innerHeight - box.height;
+        
+        // Allow slight overflow for smoother interaction
+        x = Math.min(Math.max(-20, x), maxX + 40);
+        y = Math.min(Math.max(-20, y), maxY + 40);
+        
+        // Use transform for better performance
+        slider.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+
+        // Calculate and update proximity effects
+        updateProximityEffects();
+    }
+
+    // This system creates a spatial relationship between the nav box
+    // and content sections
+    function updateProximityEffects() {
+        const navRect = slider.getBoundingClientRect();
+        const sections = document.querySelectorAll('.section:not(.is-fullscreen)');
+        
+        sections.forEach(section => {
+            const sectionRect = section.getBoundingClientRect();
+            const distance = calculateDistance(navRect, sectionRect);
+            
+            if (distance < 300) {
+                // Apply proximity-based transformations
+                applyProximityEffect(section, distance);
+            } else {
+                // Reset to default state
+                resetSectionState(section);
+            }
+        });
+    }
+
+    // Calculate the spatial relationship between elements
+    function calculateDistance(rect1, rect2) {
+        const dx = (rect1.left + rect1.right) / 2 - (rect2.left + rect2.right) / 2;
+        const dy = (rect1.top + rect1.bottom) / 2 - (rect2.top + rect2.bottom) / 2;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // Apply visual effects based on proximity
+    function applyProximityEffect(section, distance) {
+        const effect = 1 - Math.max(0, Math.min(1, distance / 300));
+        const scale = 1 + (effect * 0.05);
+        const blur = effect * 5;
+        
+        section.style.transform = `scale(${scale})`;
+        section.style.filter = `blur(${blur}px)`;
+        section.style.zIndex = Math.floor(1000 * effect);
+    }
+
+    // Reset section to its default state
+    function resetSectionState(section) {
+        section.style.transform = '';
+        section.style.filter = '';
+        section.style.zIndex = '';
+    }
+
+    // Maintain state persistence
+    function saveNavPosition() {
+        localStorage.setItem('navBoxPosition', JSON.stringify({
+            x: xOffset,
+            y: yOffset,
+            timestamp: Date.now()
+        }));
+    }
+
+    // Initialize drag ordering
+    setupDotDragging();
+
+    // Restore previous position if available
+    restoreNavPosition();
 }
