@@ -4,62 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UNIT3</title>
-    <!-- Orbitron font provides a modern, architectural feel that matches UNIT3's aesthetic -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-    <!-- Header with dynamic mix-blend-mode for content inversion -->
     <header>
-        <!-- Logo container with potential for animation states -->
-        <div class="logo-container">
-            <span class="logo">UNIT3</span>
-        </div>
+        <h1 class="logo">UNIT3</h1>
 
-        <!-- Main navigation using semantic nav element -->
-        <nav class="header-nav">
-            <!-- Latest section dropdown -->
-            <div class="dropdown">
-                <span class="dropdown-trigger">Latest</span>
-                <div class="dropdown-content">
-                    <button onclick="addSection('News')">News</button>
-                    <button onclick="addSection('Updates')">Updates</button>
-                </div>
+        <nav>
+            <div class="section latest">
+                <h2>Latest</h2>
+                <button onclick="addSection('News')">News</button>
+                <button onclick="addSection('Updates')">Updates</button>
             </div>
 
-            <!-- Cafe section with day/night transitions -->
-            <div class="dropdown">
-                <span class="dropdown-trigger">Cafe</span>
-                <div class="dropdown-content">
-                    <button onclick="addSection('Menu')">Menu</button>
-                    <button onclick="addSection('By Day')">By Day</button>
-                    <button onclick="addSection('By Night')">By Night</button>
-                    <button onclick="addSection('Events')">Events</button>
-                </div>
+            <div class="section cafe">
+                <h2>Cafe</h2>
+                <button onclick="addSection('Menu')">Menu</button>
+                <button onclick="addSection('By Day')">By Day</button>
+                <button onclick="addSection('By Night')">By Night</button>
+                <button onclick="addSection('Events')">Events</button>
+            </div>
+
+            <div class="header-icons">
+                <button class="icon-button" title="Account">○</button>
+                <button class="icon-button" title="Basket">◎</button>
+                <button class="icon-button" title="Menu">⚿</button>
             </div>
         </nav>
-
-        <!-- Header controls with inverted circular icons -->
-        <div class="header-controls">
-            <!-- Account icon with circular background -->
-            <button class="icon-button" title="Account">
-                <span class="icon-person">○</span>
-            </button>
-            <!-- Basket icon with double circle for depth -->
-            <button class="icon-button" title="Basket">
-                <span class="icon-basket">◎</span>
-            </button>
-            <!-- Menu icon using triad symbol to reference 3/UNIT3 -->
-            <button class="icon-button" title="Menu">
-                <span class="icon-triad">⚿</span>
-            </button>
-        </div>
     </header>
 
-    <!-- Sidebar with three main content categories -->
     <nav class="sidebar">
-        <!-- Creates section - workshops and community engagement -->
-        <div class="sidebar-section">
+        <div class="section creates">
             <h2>Creates</h2>
             <button onclick="addSection('Workshops')">Workshops</button>
             <button onclick="addSection('Marketplace')">Marketplace</button>
@@ -67,8 +43,7 @@
             <button onclick="addSection('The Workroom')">The Workroom</button>
         </div>
 
-        <!-- Curates section - exhibitions and special spaces -->
-        <div class="sidebar-section">
+        <div class="section curates">
             <h2>Curates</h2>
             <button onclick="addSection('Exhibitions')">Exhibitions</button>
             <button onclick="addSection('Events')">Events</button>
@@ -76,8 +51,7 @@
             <button onclick="addSection('Creative Climate Collab')">Creative Climate Collab</button>
         </div>
 
-        <!-- Connects section - community resources -->
-        <div class="sidebar-section">
+        <div class="section connects">
             <h2>Connects</h2>
             <button onclick="addSection('Directory')">Directory</button>
             <button onclick="addSection('Zine')">Zine</button>
@@ -85,16 +59,10 @@
         </div>
     </nav>
 
-    <!-- Corner resize dot for content scaling -->
     <div id="cornerResize" class="corner-resize"></div>
-
-    <!-- Main content area for dynamic sections -->
     <main id="mainContent" role="main"></main>
-
-    <!-- Navigation dot interface -->
     <div id="sectionSlider" class="section-slider"></div>
 
-    <!-- Core functionality script -->
-    <script src="script.js"></script>
+    <script src="./script.js"></script>
 </body>
 </html>
